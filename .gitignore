@@ -1,4 +1,4 @@
-*/python/data/*
+/python/data/*
 *.png
 *.npy
-*/python/output/*
+/python/output/*
