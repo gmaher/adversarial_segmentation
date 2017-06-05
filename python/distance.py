@@ -98,6 +98,41 @@ else:
 
     save_path = saver.save(sess,plot_dir+'model.ckpt')
 
+#noise analysis single example
+noise_outs = []
+diffs = []
+vars_ = []
+z = np.zeros(X_test.shape)
+reg_outs = sess.run(outs,{x_tf:z+X_test[0],y_tf:Y_test_1hot})
+for i in range(Nnoise):
+    noise = np.random.randn(X_test.shape[0],X_test.shape[1])*EPS
+    noise_outs.append(sess.run(outs,{x_tf:X_test[0]+noise,y_tf:Y_test_1hot}))
+    d = [np.mean(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
+    d2 = [np.var(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
+
+    diffs.append(d)
+    vars_.append(d2)
+plt.figure()
+for i in range(Nnoise):
+    plt.plot(diffs[i], label='run {}'.format(i))
+plt.xlabel('layer')
+plt.ylabel('l2 norm of difference, x0')
+lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=1)
+plt.grid('on')
+plt.savefig(plot_dir+'distancex0.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+
+plt.figure()
+for i in range(Nnoise):
+    plt.plot(vars_[i], label='run {}'.format(i))
+plt.xlabel('layer')
+plt.ylabel('variance of l2 norm of difference,x0')
+lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=1)
+plt.grid('on')
+plt.savefig(plot_dir+'distance_varx0.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+
+
 #Noise analysis
 weight_tensors = [l.weights[0] for l in fcs]
 reg_outs = sess.run(outs,{x_tf:X_test,y_tf:Y_test_1hot})
@@ -112,7 +147,7 @@ noise_outs = []
 diffs = []
 vars_ = []
 for i in range(Nnoise):
-    noise = np.random.rand(X_test.shape[0],X_test.shape[1])*EPS
+    noise = np.random.randn(X_test.shape[0],X_test.shape[1])*EPS
     noise_outs.append(sess.run(outs,{x_tf:X_test+noise,y_tf:Y_test_1hot}))
     d = [np.mean(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
     d2 = [np.var(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
@@ -140,6 +175,7 @@ plt.grid('on')
 plt.savefig(plot_dir+'distance_var.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
 
 
+###########################################
 plt.figure()
 plt.plot(wbounds, label='upper bound')
 plt.xlabel('layer')
