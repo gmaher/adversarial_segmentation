@@ -4,6 +4,6 @@
 *.pdf
 **.pdf
 /python/output/*
-/python/plots/*
+/python/plots/**
 python/plots/reg/*
 python/plots/noreg/*
