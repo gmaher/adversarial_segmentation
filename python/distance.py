@@ -12,9 +12,12 @@ tf.set_random_seed(1)
 parser = argparse.ArgumentParser()
 parser.add_argument('--reg', default=False)
 parser.add_argument('--grad_reg',default=False)
+parser.add_argument('--restore',default=False)
 args = parser.parse_args()
 reg = args.reg
 grad_reg = args.grad_reg
+restore = args.restore
+
 plot_dir='./plots/'
 dataset = tf.contrib.learn.datasets.load_dataset('mnist')
 X_train = dataset.train.images
@@ -73,19 +76,27 @@ elif grad_reg:
 else:
     plot_dir += 'noreg/'
 sess = tf.Session()
-output = train.train_tf(sess,loss,x_tf,y_tf,
-    X_train,Y_train_1hot,X_test,Y_test_1hot, num_iter=10000, learning_rate=5e-3, opt='sgd')
+saver = tf.train.Saver()
 
-plt.figure()
-plt.plot(output['train_loss'],color='r',linewidth=2,label='train loss')
-plt.plot(output['test_loss'],color='g',linewidth=2,label='test loss')
-plt.legend()
-plt.xlabel('steps (50 iterations/step)')
-plt.ylabel('loss')
-lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-           ncol=1)
-plt.grid('on')
-plt.savefig(plot_dir+'mnist_fc_tf.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+if restore:
+    saver.restore(sess,plot_dir+'model.ckpt')
+    print "Restored tf model"
+else:
+    output = train.train_tf(sess,loss,x_tf,y_tf,
+        X_train,Y_train_1hot,X_test,Y_test_1hot, num_iter=10000, learning_rate=5e-3, opt='sgd')
+
+    plt.figure()
+    plt.plot(output['train_loss'],color='r',linewidth=2,label='train loss')
+    plt.plot(output['test_loss'],color='g',linewidth=2,label='test loss')
+    plt.legend()
+    plt.xlabel('steps (50 iterations/step)')
+    plt.ylabel('loss')
+    lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+               ncol=1)
+    plt.grid('on')
+    plt.savefig(plot_dir+'mnist_fc_tf.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+
+    save_path = saver.save(sess,plot_dir+'model.ckpt')
 
 #Noise analysis
 weight_tensors = [l.weights[0] for l in fcs]
@@ -99,12 +110,15 @@ for i in range(1,len(wnorms)):
 
 noise_outs = []
 diffs = []
+vars_ = []
 for i in range(Nnoise):
     noise = np.random.rand(X_test.shape[0],X_test.shape[1])*EPS
     noise_outs.append(sess.run(outs,{x_tf:X_test+noise,y_tf:Y_test_1hot}))
     d = [np.mean(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
-    diffs.append(d)
+    d2 = [np.var(np.linalg.norm(x-y, axis=1)) for x,y in zip(reg_outs,noise_outs[i])]
 
+    diffs.append(d)
+    vars_.append(d2)
 plt.figure()
 for i in range(Nnoise):
     plt.plot(diffs[i], label='run {}'.format(i))
@@ -114,6 +128,17 @@ lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
            ncol=1)
 plt.grid('on')
 plt.savefig(plot_dir+'distance.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+
+plt.figure()
+for i in range(Nnoise):
+    plt.plot(vars_[i], label='run {}'.format(i))
+plt.xlabel('layer')
+plt.ylabel('variance of l2 norm of difference')
+lgd = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=1)
+plt.grid('on')
+plt.savefig(plot_dir+'distance_var.pdf',bbox_extra_artists=(lgd,), bbox_inches='tight')
+
 
 plt.figure()
 plt.plot(wbounds, label='upper bound')
@@ -200,7 +225,7 @@ for i in range(30):
     ax2.set_title('(Right): Adversary = {}'.format(yadv_labels[i]))
     plt.tight_layout
     plt.savefig(plot_dir+'adversary{}.png'.format(i),dpi=300)
-
+    plt.close()
 plt.close('all')
 
 a = range(len(s))
