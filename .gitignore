@@ -1,4 +1,6 @@
 /python/data/*
 *.png
 *.npy
+*.pdf
 /python/output/*
+/python/plots/*
